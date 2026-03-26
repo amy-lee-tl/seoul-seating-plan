@@ -816,8 +816,8 @@ async function saveToken() {
   if (!val) return;
   setGHToken(val);
   document.getElementById('tokenModal').style.display = 'none';
-  // 토큰 저장 후 바로 GitHub에서 데이터 불러오기
-  await refreshFromGitHub();
+  // 토큰 저장 후: 현재 로컬 데이터를 GitHub에 업로드 (덮어쓰지 않음)
+  await saveToGitHub();
 }
 
 // Enter key in token input
@@ -1540,17 +1540,26 @@ document.addEventListener('mousedown', e => {
   // 1. Team colors from localStorage
   applyTeamColors();
 
-  // 2. Load seat data — GitHub 우선, 실패 시 localStorage fallback
-  if (!getGHToken()) {
-    // 토큰 없으면 localStorage로 시작하고, 토큰 입력 안내 표시
+  // 2. Load seat data
+  // localStorage에 저장된 데이터가 있으면 항상 로컬 우선 사용 (직접 배치한 자리 보존)
+  // GitHub는 새 기기/브라우저에서 로컬 데이터 없을 때만 불러옴
+  const hasLocalData = floors.some(f => localStorage.getItem(storageKey(f.id)));
+  if (hasLocalData) {
     applyOverrides();
+    if (!getGHToken()) {
+      setSyncStatus('notoken');
+    } else {
+      setSyncStatus('synced');
+      // 로컬 데이터를 GitHub에 동기화
+      scheduleSave();
+    }
+  } else if (!getGHToken()) {
     setSyncStatus('notoken');
   } else {
+    // 로컬 데이터 없음 → GitHub에서 불러오기 (새 브라우저/기기)
     const ghData = await loadFromGitHub();
     if (ghData) {
       applyGitHubData(ghData);
-    } else {
-      applyOverrides();  // localStorage fallback
     }
   }
 
