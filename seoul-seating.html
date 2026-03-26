@@ -770,8 +770,8 @@ async function saveToGitHub() {
     floors.forEach(floor => {
       allData[floor.id] = floor.seats.map(s => ({
         name: (s.name === null) ? '' : (s.name || null),
-        team: s.team || null,
-        x: s.x, y: s.y
+        team: s.team || null
+        // x, y는 HTML에 고정 — GitHub에 저장 안 함
       }));
     });
     // Fetch latest SHA to avoid conflicts
@@ -867,11 +867,10 @@ function applyGitHubData(ghData) {
     if (!Array.isArray(data)) return;
     floor.seats.forEach((seat, i) => {
       if (!data[i]) return;
-      if (data[i].x != null) seat.x = data[i].x;
-      if (data[i].y != null) seat.y = data[i].y;
-      if (data[i].name === '')       { seat.name = ''; }
-      else if (data[i].name)         { seat.name = data[i].name; }
-      if (data[i].team)              { seat.team = data[i].team; }
+      // x, y는 절대 GitHub 데이터로 덮어쓰지 않음 — HTML에 고정된 값 사용
+      if (data[i].name === '')  { seat.name = ''; }
+      else if (data[i].name)    { seat.name = data[i].name; }
+      if (data[i].team)         { seat.team = data[i].team; }
     });
   });
 }
