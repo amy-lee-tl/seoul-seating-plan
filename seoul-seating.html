@@ -876,7 +876,7 @@ function applyGitHubData(ghData) {
 }
 
 // ── Storage (per-floor keys) ──
-const DATA_VERSION   = 'v9';           // ← 좌표 데이터 버전. 변경 시 localStorage 자동 초기화
+const DATA_VERSION   = 'v10';          // ← 버전 변경 시 localStorage 자동 초기화 (x,y 제거)
 const VERSION_KEY    = 'tl_data_ver';
 const TEAM_COLORS_KEY = 'tl_team_colors';
 function storageKey(floorId) { return `tl_seat_${floorId}`; }
@@ -900,8 +900,8 @@ function saveFloorState(floor) {
   //   그 외 문자열        → 그대로 저장
   const data = floor.seats.map(s => ({
     name: (s.name === null) ? '' : (s.name || null),
-    team: s.team || null,
-    x: s.x, y: s.y
+    team: s.team || null
+    // x, y는 저장 안 함 — HTML에 영구 고정
   }));
   localStorage.setItem(storageKey(floor.id), JSON.stringify(data));
   scheduleSave();  // GitHub에도 저장 (2초 debounce)
@@ -913,9 +913,7 @@ function applyOverrides() {
     if (!Array.isArray(data)) return;
     floor.seats.forEach((seat, i) => {
       if (!data[i]) return;
-      // 위치는 항상 localStorage 값 우선
-      if (data[i].x != null) seat.x = data[i].x;
-      if (data[i].y != null) seat.y = data[i].y;
+      // x, y는 절대 덮어쓰지 않음 — HTML 하드코딩 값만 사용
       // 이름:
       //   '' → 명시적 삭제이므로 빈칸 표시
       //   null → 이름 정보 없음, 하드코딩 기본값 유지 (덮어쓰지 않음)
