@@ -460,6 +460,7 @@
     <button class="add-btn" id="teamSettingsBtn">⚙ 팀 설정</button>
     <button class="add-btn" id="lockBtn" onclick="toggleLock()">🔓 잠금</button>
     <button class="add-btn" id="refreshBtn" onclick="refreshFromGitHub()" title="깃헙에서 최신 데이터 불러오기">🔄 새로고침</button>
+    <button class="add-btn" id="uploadBtn" onclick="uploadLocalToGitHub()" title="내 로컬 데이터를 GitHub에 강제 업로드 (최초 1회)">⬆ GitHub에 올리기</button>
   </div>
 
   <div class="canvas-wrapper" id="tabContent"></div>
@@ -818,6 +819,20 @@ async function saveToken() {
   document.getElementById('tokenModal').style.display = 'none';
   // 토큰 저장 후: 현재 로컬 데이터를 GitHub에 업로드 (덮어쓰지 않음)
   await saveToGitHub();
+}
+
+// 로컬 localStorage 데이터를 GitHub에 강제 업로드 (SHA 무시하고 덮어쓰기)
+async function uploadLocalToGitHub() {
+  if (!getGHToken()) { openTokenModal(); return; }
+  if (!confirm('현재 이 브라우저의 자리 배치를 GitHub에 올릴까요?\n(GitHub에 저장된 기존 데이터를 덮어씁니다)')) return;
+  // localStorage에서 직접 읽어서 floors에 적용
+  applyOverrides();
+  // SHA 리셋 후 강제 저장
+  currentSha = null;
+  const btn = document.getElementById('uploadBtn');
+  if (btn) { btn.textContent = '⬆ 올리는 중...'; btn.disabled = true; }
+  await saveToGitHub();
+  if (btn) { btn.textContent = '⬆ GitHub에 올리기'; btn.disabled = false; }
 }
 
 // Enter key in token input
@@ -1540,26 +1555,16 @@ document.addEventListener('mousedown', e => {
   // 1. Team colors from localStorage
   applyTeamColors();
 
-  // 2. Load seat data
-  // localStorage에 저장된 데이터가 있으면 항상 로컬 우선 사용 (직접 배치한 자리 보존)
-  // GitHub는 새 기기/브라우저에서 로컬 데이터 없을 때만 불러옴
-  const hasLocalData = floors.some(f => localStorage.getItem(storageKey(f.id)));
-  if (hasLocalData) {
+  // 2. Load seat data — GitHub가 항상 진실의 기준
+  if (!getGHToken()) {
     applyOverrides();
-    if (!getGHToken()) {
-      setSyncStatus('notoken');
-    } else {
-      setSyncStatus('synced');
-      // 로컬 데이터를 GitHub에 동기화
-      scheduleSave();
-    }
-  } else if (!getGHToken()) {
     setSyncStatus('notoken');
   } else {
-    // 로컬 데이터 없음 → GitHub에서 불러오기 (새 브라우저/기기)
     const ghData = await loadFromGitHub();
-    if (ghData) {
+    if (ghData && Object.keys(ghData).length > 0) {
       applyGitHubData(ghData);
+    } else {
+      applyOverrides();  // GitHub 비어있으면 localStorage fallback
     }
   }
 
